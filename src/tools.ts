@@ -699,6 +699,73 @@ export function registerYnabTools(server: McpServer, ynab: YnabClient) {
 	);
 
 	server.registerTool(
+		"create_category",
+		{
+			title: "Create a category",
+			description:
+				"Create a new budget category inside an existing category group (e.g. 'Family Expenses'). Confirm the name and group with the user first. Use list_categories to see group names.",
+			inputSchema: z.object({
+				plan_id: planId,
+				name: z.string().min(1).max(50).describe("New category name"),
+				group: z.string().describe("Existing category group name or ID, e.g. 'Family Expenses'"),
+				note: z.string().max(500).optional(),
+			}),
+			annotations: WRITE,
+		},
+		wrap(async ({ plan_id, name, group, note }) => {
+			const plan = resolvePlan(plan_id);
+			const groups = (await ynab.listCategoryGroups(plan)).filter(
+				(g) => !g.deleted && g.name !== "Internal Master Category",
+			);
+			const g = pickOne(groups, group, "category group", (x) => [x.name]);
+			const existing = g.categories.find((c) => !c.deleted && norm(c.name) === norm(name));
+			if (existing) {
+				throw new ToolInputError(`"${name}" already exists in ${g.name} (${existing.id}).`);
+			}
+			const created = await ynab.createCategory(plan, {
+				name,
+				category_group_id: g.id,
+				...(note ? { note } : {}),
+			});
+			return { created: { id: created.id, name: created.name, group: g.name } };
+		}),
+	);
+
+	server.registerTool(
+		"update_category",
+		{
+			title: "Rename or edit a category",
+			description:
+				"Change a category's name, note, or target amount. Pass only what should change. Confirm with the user first.",
+			inputSchema: z.object({
+				plan_id: planId,
+				category: z.string().describe("Category name or ID"),
+				new_name: z.string().min(1).max(50).optional(),
+				note: z.string().max(500).nullable().optional(),
+				target_amount: z
+					.number()
+					.min(0)
+					.nullable()
+					.optional()
+					.describe("New target amount for the category's existing target (e.g. 500), or null to clear it"),
+			}),
+			annotations: WRITE,
+		},
+		wrap(async ({ plan_id, category, new_name, note, target_amount }) => {
+			const plan = resolvePlan(plan_id);
+			const cat = await new Lookup(ynab, plan).category(category);
+			const body: { name?: string; note?: string | null; goal_target?: number | null } = {};
+			if (new_name !== undefined) body.name = new_name;
+			if (note !== undefined) body.note = note;
+			if (target_amount !== undefined)
+				body.goal_target = target_amount === null ? null : toMilliunits(target_amount);
+			if (Object.keys(body).length === 0) throw new ToolInputError("Nothing to change.");
+			const updated = await ynab.updateCategory(plan, cat.id, body);
+			return { updated: simplifyCategory({ ...updated, group: cat.group }) };
+		}),
+	);
+
+	server.registerTool(
 		"assign_to_category",
 		{
 			title: "Assign money to a category",

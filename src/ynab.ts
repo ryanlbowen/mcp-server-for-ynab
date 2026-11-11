@@ -297,6 +297,29 @@ export class YnabClient {
 		return data.transaction as YnabTransaction;
 	}
 
+	async createCategory(
+		planId: string,
+		category: { name: string; category_group_id: string; note?: string | null },
+	) {
+		const data = await this.request<any>("POST", `${this.plan(planId)}/categories`, {
+			category,
+		});
+		return data.category as YnabCategory;
+	}
+
+	async updateCategory(
+		planId: string,
+		categoryId: string,
+		category: { name?: string; note?: string | null; goal_target?: Milliunits | null },
+	) {
+		const data = await this.request<any>(
+			"PATCH",
+			`${this.plan(planId)}/categories/${encodeURIComponent(categoryId)}`,
+			{ category },
+		);
+		return data.category as YnabCategory;
+	}
+
 	async setCategoryBudgeted(
 		planId: string,
 		month: string,

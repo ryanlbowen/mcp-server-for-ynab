@@ -20,6 +20,8 @@ Talk to your YNAB plan from Claude. This is a small server you deploy to **your 
 | `bulk_update_transactions` | Approve, categorize, clear or flag many transactions at once |
 | `delete_transaction` | Delete a transaction |
 | `assign_to_category` | Set how much is assigned to a category for a month |
+| `create_category` | Add a new category to an existing group |
+| `update_category` | Rename a category, change its note, or adjust its target |
 
 Accounts and categories can be given by name ("Checking", "Groceries", "Everyday: Groceries"), so you can just say *"Add $42.18 at Costco yesterday to Groceries on my Visa."*
 
